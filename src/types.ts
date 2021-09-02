@@ -22,6 +22,7 @@ import { ItemRenderer, ItemRendererStatus } from "./ItemRenderer";
  * @property - The prefix to use element's data attribute. (default: "data-grid-")<ko>엘리먼트의 데이타 속성에 사용할 접두사. (default: "data-grid-")</ko>
  * @property - Debounce time to set in the resize event. (default: 100)<ko>리사이즈 이벤트에 설정할 디바운스 시간. (default: 100)</ko>
  * @property - Maximum time to debounce the resize event(0 is not set). (default: 0)<ko>리사이즈 이벤트를 디바운스할 수 있는 최대 시간(0은 미설정이다). (default: 0)</ko>
+ * @property - Whether to move the outline to 0 when the top is empty when rendering. However, if it overflows above the top, the outline is forced to 0. (default: true) <ko>렌더링시 상단이 비어있을 때 아웃라인을 0으로 이동시킬지 여부. 하지만 상단보다 넘치는 경우 아웃라인을 0으로 강제 이동한다. (default: true)</ko>
  * @property - Whether the resize method should be called automatically after a window resize event. (default: true)<ko>window의 resize 이벤트 이후 자동으로 resize()메소드를 호출할지의 여부. (default: true)</ko>
  * @property - Whether to use transform property instead of using left and top css properties. <ko>left, top css 속성 쓰는 대신 transform 속성을 사용할지 여부.</ko>
  * @property - Whether to automatically render through property change. <ko>property의 변화를 통해 자동으로 render를 할지 여부.</ko>
@@ -40,6 +41,7 @@ export interface GridOptions {
   resizeDebounce?: number;
   maxResizeDebounce?: number;
   autoResize?: boolean;
+  useFit?: boolean;
   useTransform?: boolean;
   renderOnPropertyChange?: boolean;
   preserveUIOnDestroy?: boolean;
@@ -77,12 +79,29 @@ export interface GridStatus {
   containerManager: ContainerManagerStatus;
   itemRenderer: ItemRendererStatus;
 }
-
+/**
+ * @typedef
+ * @memberof Grid
+ * @property - The direction the grid was rendered. <ko>Grid가 렌더링된 방향.</ko>
+ * @property - The items rendered for the first time. <ko>처음 렌더링한 아이템들,</ko>
+ * @property - The items updated in size. <ko>사이즈 업데이트한 아이템들.</ko>
+ * @property - Whether rendering was done using the resize event or the useResize option. <ko>resize 이벤트 또는 useResize 옵션을 사용하여 렌더링를 했는지 여부.</ko>
+ */
 export interface OnRenderComplete {
+  direction: "start" | "end";
   isResize: boolean;
   mounted: GridItem[];
   updated: GridItem[];
 }
+
+/**
+ * @typedef
+ * @memberof Grid
+ * @property - The item's element.<ko>아이템의 엘리먼트.</ko>
+ * @property - The content element with error.<ko>에러난 발생한 콘텐츠 엘리먼트.</ko>
+ * @property - The item with error content.<ko>에러난 콘텐츠를 가지고 있는 아이템</ko>
+ * @property - If you have fixed the error and want to recheck it, call update(). If you remove an element, call the syncElements() method.<ko>에러를 해결했고 재검사하고 싶으면 update()를 호출해라. 만약 엘리먼트를 삭제한 경우 syncElements() 메서드를 호출해라.</ko>
+ */
 export interface OnContentError {
   element: HTMLElement;
   target: HTMLElement;

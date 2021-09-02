@@ -12,7 +12,7 @@ import { MasonryGrid } from "./grids/MasonryGrid";
 import { PackingGrid } from "./grids/PackingGrid";
 import { VueGridInterface } from "./types";
 
-export function makeGrid<T extends GridFunction>(tagName: string, GridClass: T, VueConstructor: any) {
+export function makeGrid<T extends GridFunction>(tagName: string, GridClass: T, VueComponent: any) {
   const {
     propertyTypes,
     defaultOptions,
@@ -28,14 +28,14 @@ export function makeGrid<T extends GridFunction>(tagName: string, GridClass: T, 
 
   GRID_METHODS.forEach(name => {
     methods[name] = function (this: any, ...args: any[]) {
-      this.$_grid[name](...args);
+      return this.$_grid[name](...args);
     };
   });
 
   return {
-    ...VueConstructor,
+    ...VueComponent,
     name: tagName,
-    props: Object.keys(defaultOptions),
+    props: ["tag", ...Object.keys(defaultOptions)],
     watch,
     methods,
     mounted(this: any) {
@@ -57,6 +57,9 @@ export function makeGrid<T extends GridFunction>(tagName: string, GridClass: T, 
       });
     },
     beforeDestroy(this: any) {
+      this.$_grid.destroy();
+    },
+    beforeUnmount(this: any) {
       this.$_grid.destroy();
     },
   } as VueGridInterface<T>;

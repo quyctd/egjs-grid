@@ -10,6 +10,10 @@ export default function App(props: Record<string, any>) {
     column={props.column}
     columnSize={props.columnSize}
     columnSizeRatio={props.columnSizeRatio}
+    key={Math.random()}
+    onRenderComplete={e => {
+      console.log(e);
+    }}
   >
     <div className={"item"}>1</div>
     <div className={"item"}>2</div>

@@ -9,17 +9,12 @@ export * from "./grids/MasonryGrid";
 export * from "./grids/JustifiedGrid";
 export * from "./grids/FrameGrid";
 export * from "./grids/PackingGrid";
-
+export * from "./ItemRenderer";
 export * from "./types";
 export * from "./Grid";
 export * from "./GridItem";
 export * from "./ContainerManager";
-export {
-  PROPERTY_TYPE,
-  GRID_METHODS,
-  GRID_EVENTS,
-  RECT_NAMES,
-} from "./consts";
+export * from "./consts";
 export {
   GetterSetter,
   withGridMethods,

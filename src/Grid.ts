@@ -34,8 +34,6 @@ abstract class Grid<Options extends GridOptions = GridOptions> extends Component
     end: [],
   };
   private _renderTimer = 0;
-  private _resizeTimer = 0;
-  private _maxResizeDebounceTimer = 0;
   private _im: ImReady;
 
   /**
@@ -73,13 +71,19 @@ abstract class Grid<Options extends GridOptions = GridOptions> extends Component
       percentage,
       externalContainerManager,
       externalItemRenderer,
+      resizeDebounce,
+      maxResizeDebounce,
+      autoResize,
     } = this.options;
 
     // TODO: 테스트용 설정
     this.containerManager = externalContainerManager!
       || new ContainerManager(this.containerElement, {
         horizontal,
-      });
+        resizeDebounce,
+        maxResizeDebounce,
+        autoResize,
+      }).on("resize", this._onResize);
     this.itemRenderer = externalItemRenderer!
       || new ItemRenderer({
         useTransform,
@@ -89,6 +93,13 @@ abstract class Grid<Options extends GridOptions = GridOptions> extends Component
       });
 
     this._init();
+  }
+  /**
+   * Return Container Element.
+   * @ko 컨테이너 엘리먼트를 반환한다.
+   */
+  public getContainerElement(): HTMLElement {
+    return this.containerElement;
   }
   /**
    * Return items.
@@ -209,11 +220,12 @@ abstract class Grid<Options extends GridOptions = GridOptions> extends Component
   /**
    * Returns current status such as item's position, size. The returned status can be restored with the setStatus() method.
    * @ko 아이템의 위치, 사이즈 등 현재 상태를 반환한다. 반환한 상태는 setStatus() 메서드로 복원할 수 있다.
+   * @param - Whether to minimize the status of the item. (default: false) <ko>item의 status를 최소화할지 여부. (default: false)</ko>
    */
-  public getStatus(): GridStatus {
+  public getStatus(minimize?: boolean): GridStatus {
     return {
       outlines: this.outlines,
-      items: this.items.map((item) => item.getStatus()),
+      items: this.items.map((item) => minimize ? item.getMinimizedStatus() : item.getStatus()),
       containerManager: this.containerManager.getStatus(),
       itemRenderer: this.itemRenderer.getStatus(),
     };
@@ -245,6 +257,7 @@ abstract class Grid<Options extends GridOptions = GridOptions> extends Component
     } else {
       window.setTimeout(() => {
         this._renderComplete({
+          direction: this.defaultDirection,
           mounted: this.items,
           updated: [],
           isResize: false,
@@ -273,11 +286,12 @@ abstract class Grid<Options extends GridOptions = GridOptions> extends Component
         }
       });
     }
-    window.removeEventListener("resize", this._scheduleResize);
+
     this._im?.destroy();
   }
+
   protected checkReady(options: RenderOptions = {}) {
-    // Grid: renderItems => checkItems => _renderItems
+    // Grid: renderItems => checkReady => readyItems => applyGrid
     const items = this.items;
     const updated = items.filter((item) => item.element && item.updateState !== UPDATE_STATE.UPDATED);
     const mounted: GridItem[] = updated.filter((item) => item.mountState !== MOUNT_STATE.MOUNTED);
@@ -287,21 +301,20 @@ abstract class Grid<Options extends GridOptions = GridOptions> extends Component
     this._im = new ImReady({
       prefix: this.options.attributePrefix,
     }).on("preReadyElement", (e) => {
-      if (e.hasLoading) {
-        updated[e.index].updateState = UPDATE_STATE.WAIT_LOADING;
-      }
+      updated[e.index].updateState = UPDATE_STATE.WAIT_LOADING;
     }).on("preReady", () => {
       this.itemRenderer.updateItems(updated);
-      this._renderItems(mounted, updated, options);
+      this.readyItems(mounted, updated, options);
     }).on("readyElement", (e) => {
       const item = updated[e.index];
-      if (e.hasLoading) {
-        item.updateState = UPDATE_STATE.NEED_UPDATE;
 
-        if (e.isPreReadyOver) {
-          this.itemRenderer.updateItems([item]);
-          this._renderItems([], [item], options);
-        }
+      item.updateState = UPDATE_STATE.NEED_UPDATE;
+
+      // after preReady
+      if (e.isPreReadyOver) {
+        item.element!.style.cssText = item.orgCSSText;
+        this.itemRenderer.updateItems([item]);
+        this.readyItems([], [item], options);
       }
     }).on("error", (e) => {
       const item = items[e.index];
@@ -310,10 +323,6 @@ abstract class Grid<Options extends GridOptions = GridOptions> extends Component
        * @ko 콘텐츠 로드에 에러가 날 때 발생하는 이벤트.
        * @event Grid#contentError
        * @param {Grid.OnContentError} e - The object of data to be sent to an event <ko>이벤트에 전달되는 데이터 객체</ko>
-       * @param {HTMLElement} [e.element] - The item's element.<ko>아이템의 엘리먼트.</ko>
-       * @param {HTMLElement} [e.target] - The content element with error.<ko>에러난 발생한 콘텐츠 엘리먼트.</ko>
-       * @param {Grid.GridItem} [e.item] - The item with error content.<ko>에러난 콘텐츠를 가지고 있는 아이템</ko>
-       * @param {function} [e.update] - If you have fixed the error and want to recheck it, call update(). If you remove an element, call the syncElements() method.<ko>에러를 해결했고 재검사하고 싶으면 update()를 호출해라. 만약 엘리먼트를 삭제한 경우 syncElements() 메서드를 호출해라.</ko>
        * @example
 grid.on("contentError", e => {
   e.update();
@@ -340,11 +349,16 @@ grid.on("contentError", e => {
       this.renderItems();
     });
   }
-  private _fit() {
+  protected fitOutlines(useFit = this.useFit) {
     const outlines = this.outlines;
     const startOutline = outlines.start;
     const endOutline = outlines.end;
     const outlineOffset = startOutline.length ? Math.min(...startOutline) : 0;
+
+    // If the outline is less than 0, a fit occurs forcibly.
+    if (!useFit && outlineOffset > 0) {
+      return;
+    }
 
     outlines.start = startOutline.map((point) => point - outlineOffset);
     outlines.end = endOutline.map((point) => point - outlineOffset);
@@ -358,7 +372,7 @@ grid.on("contentError", e => {
       item.cssContentPos = contentPos - outlineOffset;
     });
   }
-  private _renderItems(mounted: GridItem[], updated: GridItem[], options: RenderOptions) {
+  protected readyItems(mounted: GridItem[], updated: GridItem[], options: RenderOptions) {
     const prevOutlines = this.outlines;
     const direction = options.direction || this.options.defaultDirection!;
     const prevOutline = options.outline || prevOutlines[direction === "end" ? "start" : "end"];
@@ -371,10 +385,11 @@ grid.on("contentError", e => {
       nextOutlines = this.applyGrid(this.items, direction, prevOutline);
     }
     this.setOutlines(nextOutlines);
-    this._fit();
+    this.fitOutlines();
     this.itemRenderer.renderItems(this.items);
     this._refreshContainerContentSize();
     this._renderComplete({
+      direction,
       mounted,
       updated,
       isResize: !!options.useResize,
@@ -386,9 +401,6 @@ grid.on("contentError", e => {
      * @ko Grid가 렌더링이 완료됐을 때  발생하는 이벤트이다.
      * @event Grid#renderComplete
      * @param {Grid.OnRenderComplete} e - The object of data to be sent to an event <ko>이벤트에 전달되는 데이터 객체</ko>
-     * @param {function} [e.mounted] - The items rendered for the first time <ko>처음 렌더링한 아이템들</ko>
-     * @param {function} [e.updated] - The items updated in size.<ko>사이즈 업데이트한 아이템들.</ko>
-     * @param {function} [e.useResize] - Whether rendering was done using the resize event or the useResize option. <ko>resize 이벤트 또는 useResize 옵션을 사용하여 렌더링를 했는지 여부.</ko>
      * @example
 grid.on("renderComplete", e => {
 console.log(e.mounted, e.updated, e.useResize);
@@ -418,37 +430,13 @@ console.log(e.mounted, e.updated, e.useResize);
     this.itemRenderer.setContainerRect(this.containerManager.getRect());
   }
   private _onResize = () => {
-    clearTimeout(this._resizeTimer);
-    clearTimeout(this._maxResizeDebounceTimer);
-
-    this._maxResizeDebounceTimer = 0;
-    this._resizeTimer = 0;
     this.renderItems({
       useResize: true,
     });
   }
-  private _scheduleResize = () => {
-    const {
-      resizeDebounce,
-      maxResizeDebounce,
-    } = this.options;
-
-
-    if (!this._maxResizeDebounceTimer && maxResizeDebounce >= resizeDebounce) {
-      this._maxResizeDebounceTimer = window.setTimeout(this._onResize, maxResizeDebounce);
-    }
-    if (this._resizeTimer) {
-      clearTimeout(this._resizeTimer);
-      this._resizeTimer = 0;
-    }
-    this._resizeTimer = window.setTimeout(this._onResize, resizeDebounce);
-  }
 
   private _init() {
     this._resizeContainer();
-    if (this.options.autoResize) {
-      window.addEventListener("resize", this._scheduleResize);
-    }
   }
 }
 
@@ -485,6 +473,21 @@ export default Grid;
  *
  * grid.defaultDirection = "start";
  */
+
+
+/**
+ * Whether to move the outline to 0 when the top is empty when rendering. However, if it overflows above the top, the outline is forced to 0. (default: true)
+ * @ko 렌더링시 상단이 비어있을 때 아웃라인을 0으로 이동시킬지 여부. 하지만 상단보다 넘치는 경우 아웃라인을 0으로 강제 이동한다. (default: true)
+ * @name Grid#useFit
+ * @type {$ts:Grid.GridOptions["useFit"]}
+ * @example
+ * import { MasonryGrid } from "@egjs/grid";
+ *
+ * const grid = new MasonryGrid(container, {
+ *   useFit: true,
+ * });
+ *
+ * grid.useFit = false;
 
 /**
  * Whether to preserve the UI of the existing container or item when destroying.

@@ -1,0 +1,42 @@
+name: Run tests
+on: [push, pull_request]
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2.1.5
+        with:
+          node-version: 14.15.4
+      - name: install
+        run: npm install
+      - name: lint
+        run: npm run lint
+      - name: test
+        run: npm run coverage
+      - name: Coveralls GitHub Action
+        uses: coverallsapp/github-action@v1.1.2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2.1.5
+        with:
+          node-version: 14.15.4
+      - uses: microsoft/playwright-github-action@v1.4.4
+      - run: npm install
+      - name: install packages
+        run: npm run e2e:pre-install
+      - name: build grid
+        run: npm run e2e:pre-build
+      - name: run tests
+        run: npm run e2e:headless
+      - name: Archive logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: e2e log
+          path: test/e2e/log
+

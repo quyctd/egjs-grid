@@ -1,6 +1,6 @@
 {
   "name": "@egjs/react-grid",
-  "version": "1.1.0",
+  "version": "1.4.0",
   "description": "A React component that can arrange items according to the type of grids",
   "types": "declaration/index.d.ts",
   "main": "dist/grid.cjs.js",
@@ -36,9 +36,12 @@
     "layout"
   ],
   "dependencies": {
-    "@egjs/grid": "~1.1.0"
+    "@egjs/grid": "~1.4.0"
   },
   "devDependencies": {
+    "@codeceptjs/configure": "^0.6.2",
+    "@codeceptjs/examples": "^1.2.1",
+    "@codeceptjs/ui": "^0.4.3",
     "@egjs/build-helper": "^0.1.2",
     "@storybook/addon-actions": "^6.0.21",
     "@storybook/addon-controls": "^6.0.21",
@@ -64,6 +67,7 @@
     "react-scripts": "4.0.3",
     "storybook-addon-preview": "^2.1.1",
     "storybook-dark-mode": "^1.0.3",
+    "tslib": "^2.3.0",
     "typescript": "^4.2.3",
     "web-vitals": "^1.1.0"
   },

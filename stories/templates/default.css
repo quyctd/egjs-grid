@@ -1,6 +1,12 @@
 html, body {
   position: relative;
   height: 100%;
+  padding: 0!important;
+  margin: 0!important;
+}
+
+.container {
+  overflow: hidden;
 }
 
 .item {
@@ -34,7 +40,61 @@ html, body {
   background: #ed5;
   height: 150px;
 }
+
 .item:nth-child(6n + 6) {
   background: #d5e;
   height: 130px;
+}
+
+.result {
+  text-align: center;
+  padding: 10px;
+  font-weight: bold;
+  box-sizing: border-box;
+  font-size: 14px;
+}
+
+.button {
+  position: relative;
+  display: block;
+  margin: 10px auto;
+  padding: 10px 20px;
+  background: white;
+  border: 1px solid #ccc;
+  appearance: none;
+  font-weight: bold;
+  width: 150px;
+  text-align: center;
+  box-sizing: border-box;
+  font-size: 14px;
+}
+
+.image {
+  position: relative;
+  width: 100%;
+  font-size: 0;
+}
+
+.image img {
+  width: 100%;
+}
+
+.title {
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .title, .result {
+    color: white;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .title, .result {
+    color: black;
+  }
 }

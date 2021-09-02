@@ -13,26 +13,29 @@ import { MOUNT_STATE, RECT_NAMES, UPDATE_STATE } from "./consts";
  * @property - The element for the item. <ko>아이템에 있는 엘리먼트.</ko>
  * @property - State of whether the element has been added to the container. <ko>element가 container에 추가되었는지 상태.</ko>
  * @property - The update state of the element's rect. <ko>element의 rect의 업데이트 상태.</ko>
+ * @property - Whether the element's rect was updated for the first time. <ko>처음으로 element의 rect를 업데이트 했는지 여부.</ko>
  * @property - Attributes set as `data-grid-` of element. <ko>element의 `data-grid-`으로 설정된 속성들.</ko>
  * @property - cssText of the first style when an element is added to the container. <ko>element가 container에 추가됐을 때 처음 style의 cssText.</ko>
  * @property - The element's rect before first rendering. <ko>처음 렌더링 하기 전 엘리먼트의 rect.</ko>
  * @property - The updated element's rect before rendering. <ko>렌더링 하기 전 업데이트 된 엘리먼트의 rect.</ko>
  * @property - The CSS rect of the item to be rendered by being applied to the Grid. <ko>Grid에 적용되어 렌더링을 하기 위한 item의 CSS rect</ko>
  * @property - Additional data of the item. <ko>item의 추가적인 데이터들.</ko>
+ * @property - Grid ready data for rendering. <ko>렌더링을 하기 위한 grid의 준비 데이터.</ko>
  */
 export interface GridItemStatus {
-  key?: string;
+  key?: string | number;
   element?: HTMLElement | null;
   mountState?: MOUNT_STATE;
   updateState?: UPDATE_STATE;
+  isFirstUpdate?: boolean;
   attributes?: Record<string, string>;
   orgCSSText?: string;
   orgRect?: Required<DOMRect>;
   rect?: Required<DOMRect>;
   cssRect?: DOMRect;
-  data?: Record<string, string>;
+  data?: Record<string, any>;
+  gridData?: Record<string, any>;
 }
-
 
 /**
  * @memberof Grid
@@ -56,10 +59,12 @@ class GridItem {
       cssRect: {},
       attributes: {},
       data: {},
+      isFirstUpdate: false,
       mountState: MOUNT_STATE.UNCHECKED,
       updateState: UPDATE_STATE.NEED_UPDATE,
       element: element || null,
       orgCSSText: element?.style.cssText ?? "",
+      gridData: {},
       ...itemStatus,
     };
 
@@ -186,19 +191,50 @@ class GridItem {
    * Returns the status of the item.
    * @ko 아이템의 상태를 반환한다.
    */
-  public getStatus(): GridItemStatus {
+  public getStatus(): Required<GridItemStatus> {
     return {
       mountState: this.mountState,
       updateState: this.updateState,
       attributes: this.attributes,
       orgCSSText: this.orgCSSText,
+      isFirstUpdate: this.isFirstUpdate,
       element: null,
       key: this.key,
       orgRect: this.orgRect,
       rect: this.rect,
       cssRect: this.cssRect,
+      gridData: this.gridData,
       data: this.data,
     };
+  }
+  /**
+   * Returns minimized status of the item.
+   * @ko 아이템의 간소화된 상태를 반환한다.
+   */
+  public getMinimizedStatus(): Partial<GridItemStatus> {
+    const status: Partial<GridItemStatus> = {
+      orgRect: this.orgRect,
+      rect: this.rect,
+      cssRect: this.cssRect,
+      attributes: this.attributes,
+      gridData: this.gridData,
+    };
+    if (typeof this.key !== "undefined") {
+      status.key = this.key;
+    }
+    if (this.mountState !== MOUNT_STATE.UNCHECKED) {
+      status.mountState = this.mountState;
+    }
+    if (this.updateState !== UPDATE_STATE.NEED_UPDATE) {
+      status.updateState = this.updateState;
+    }
+    if (this.isFirstUpdate) {
+      status.isFirstUpdate = true;
+    }
+    if (this.orgCSSText) {
+      status.orgCSSText = this.orgCSSText;
+    }
+    return status;
   }
 }
 
