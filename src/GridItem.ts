@@ -42,6 +42,9 @@ export interface GridItemStatus {
  * @implements Grid.GridItem.GridItemStatus
  */
 class GridItem {
+  public isUpdate = false;
+  public hasTransition = false;
+  public transitionDuration = "";
   /**
    * @constructor
    * @param horizontal - Direction of the scroll movement. (true: horizontal, false: vertical) <ko>스크롤 이동 방향. (true: 가로방향, false: 세로방향)</ko>

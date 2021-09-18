@@ -1,4 +1,6 @@
 import * as sinon from "sinon";
+import { MOUNT_STATE } from "../../src";
+import { GridItem } from "../../src/GridItem";
 import { SampleGrid } from "./samples/SampleGrid";
 import { cleanup, sandbox, waitEvent, waitFor } from "./utils/utils";
 
@@ -262,6 +264,24 @@ describe("test Grid", () => {
       // rect1 != rect2
       expect(rect1.width).to.be.not.equals(rect2.width);
       expect(rect1.height).to.be.not.equals(rect2.height);
+    });
+    it("should check if it is not mounted if there is no parent", async () => {
+      // Given
+      container!.innerHTML = ``;
+      grid = new SampleGrid(container!);
+
+      const item = new GridItem(false, {
+        element: document.createElement("div"),
+      });
+
+      // When
+      grid.setItems([item]);
+      grid.renderItems();
+
+      await waitEvent(grid, "renderComplete");
+
+      // Then
+      expect(item.mountState).to.be.equals(MOUNT_STATE.UNCHECKED);
     });
   });
   describe("test setStatus, getStatus", () => {
@@ -710,6 +730,33 @@ describe("test Grid", () => {
 
       // Then
       expect(spy.callCount).to.be.equals(0);
+    });
+    it(`should check if the transition is temporarily removed`, async () => {
+      // Given
+      container!.innerHTML = `
+      <div>1</div>
+      <div style="transition: all ease 0.2s;">2</div>
+      <div>3</div>
+      `;
+      grid = new SampleGrid(container!);
+
+      // When
+      grid.renderItems();
+
+      const transitions = grid.getItems().map((item) => item.hasTransition);
+
+      // set transitionDuration to 0s
+      const transitionProperties1 = grid.getItems().map((item) => item.element!.style.transitionDuration);
+
+      await waitEvent(grid, "renderComplete");
+      const transitionProperties2 = grid.getItems().map((item) => item.element!.style.transitionDuration);
+
+      // Then
+      expect(transitions).to.be.deep.equals([false, true, false]);
+      // before mount
+      expect(transitionProperties1).to.be.deep.equals(["", "0s", ""]);
+      // after mount (restore duration)
+      expect(transitionProperties2).to.be.deep.equals(["", "0.2s", ""]);
     });
   });
 });
